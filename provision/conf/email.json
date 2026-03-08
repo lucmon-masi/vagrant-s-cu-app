@@ -1,0 +1,6 @@
+{
+  "relay_host": "smtp.example.com",
+  "relay_port": 587,
+  "smtp_user": "user@example.com",
+  "smtp_pass": "mot_de_passe_ou_app_password"
+}

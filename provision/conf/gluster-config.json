@@ -1,0 +1,10 @@
+{
+  "volume_name": "gv0",
+  "brick_dir": "/data/brick1",
+  "mount_dir": "/mnt/gluster",
+  "nodes": [
+    { "name": "stockage",  "ip": "192.168.56.12", "role": "primary" },
+    { "name": "stockage2", "ip": "192.168.56.13", "role": "secondary" },
+    { "name": "stockage3", "ip": "192.168.56.14", "role": "secondary" }
+  ]
+}
