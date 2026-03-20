@@ -36,13 +36,6 @@ Vagrant.configure("2") do |config|
       v.memory = 1024
       v.cpus   = 1
     end
-
-    # Scripts gluster dans /home/vagrant
-    sto.vm.provision "file",
-      source: "provision/gluster-setup.sh",
-      destination: "/home/vagrant/gluster-setup.sh"
-
-    sto.vm.provision "shell", inline: "chmod +x /home/vagrant/gluster-setup.sh"
   end
 
   # stockage2
@@ -53,12 +46,6 @@ Vagrant.configure("2") do |config|
       v.memory = 1024
       v.cpus   = 1
     end
-
-    sto2.vm.provision "file",
-      source: "provision/gluster-setup.sh",
-      destination: "/home/vagrant/gluster-setup.sh"
-
-    sto2.vm.provision "shell", inline: "chmod +x /home/vagrant/gluster-setup.sh"
   end
 
   # stockage3
@@ -69,12 +56,6 @@ Vagrant.configure("2") do |config|
       v.memory = 1024
       v.cpus   = 1
     end
-
-    sto3.vm.provision "file",
-      source: "provision/gluster-setup.sh",
-      destination: "/home/vagrant/gluster-setup.sh"
-
-    sto3.vm.provision "shell", inline: "chmod +x /home/vagrant/gluster-setup.sh"
   end
 
 

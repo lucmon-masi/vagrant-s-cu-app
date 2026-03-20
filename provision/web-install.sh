@@ -1,22 +1,36 @@
 #!/bin/bash
 set -e
 
-echo "[*] Mise à jour des paquets..."
-sudo apt-get update -y
+echo "[*] Installation Nginx (idempotent)..."
 
-echo "[*] Installation de Nginx..."
-sudo apt-get install -y nginx
+export DEBIAN_FRONTEND=noninteractive
 
-echo "[*] Activation et démarrage du service Nginx..."
-sudo systemctl enable nginx
-sudo systemctl start nginx
+# Update seulement si nécessaire (paquets changés)
+if ! apt list --upgradable 2>/dev/null | grep -q .; then
+    apt-get update -y
+fi
 
-echo "[*] Création d'une page index.html de test..."
-sudo mkdir -p /var/www/web-vm
-sudo chown -R "$USER":"$USER" /var/www/web-vm
+# Nginx seulement si absent
+if ! dpkg -l | grep -q "^ii  nginx "; then
+    apt-get install -y nginx
+fi
 
-cat > /var/www/web-vm/index.html << 'EOF'
-<!DOCTYPE html>
+# Service : enable/start si pas déjà
+if ! systemctl is-enabled --quiet nginx; then
+    systemctl enable nginx
+fi
+if ! systemctl is-active --quiet nginx; then
+    systemctl start nginx
+fi
+
+# Dossier et page index
+WEB_DIR="/var/www/web-vm"
+if [ ! -d "$WEB_DIR" ]; then
+    mkdir -p "$WEB_DIR"
+    chown -R "$USER":"$USER" "$WEB_DIR"
+fi
+
+INDEX_CONTENT='<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -26,12 +40,13 @@ cat > /var/www/web-vm/index.html << 'EOF'
     <h1>VM Web : Nginx fonctionne</h1>
     <p>Servi depuis /var/www/web-vm sur port 80.</p>
 </body>
-</html>
-EOF
+</html>'
+if [ ! -f "$WEB_DIR/index.html" ] || ! diff -q <(echo "$INDEX_CONTENT") "$WEB_DIR/index.html" >/dev/null 2>&1; then
+    echo "$INDEX_CONTENT" > "$WEB_DIR/index.html"
+fi
 
-echo "[*] Configuration du vhost Nginx..."
-sudo tee /etc/nginx/sites-available/web-vm >/dev/null << 'EOF'
-server {
+# Vhost config : appliquer seulement si différent
+VHOST_CONTENT='server {
     listen 80;
     listen [::]:80;
 
@@ -46,17 +61,35 @@ server {
     location / {
         try_files $uri $uri/ =404;
     }
-}
-EOF
+}'
+VHOST_SRC="/etc/nginx/sites-available/web-vm"
+if [ ! -f "$VHOST_SRC" ] || ! diff -q <(echo "$VHOST_CONTENT") "$VHOST_SRC" >/dev/null 2>&1; then
+    echo "$VHOST_CONTENT" | tee "$VHOST_SRC" >/dev/null
+fi
 
-echo "[*] Activation du vhost et désactivation du site par défaut..."
-sudo ln -sf /etc/nginx/sites-available/web-vm /etc/nginx/sites-enabled/web-vm
-sudo rm -f /etc/nginx/sites-enabled/default
+# Lien symbolique vhost : créer seulement si absent ou cassé
+VHOST_LINK="/etc/nginx/sites-enabled/web-vm"
+if [ ! -L "$VHOST_LINK" ] || [ ! -e "$VHOST_LINK" ]; then
+    ln -sf "$VHOST_SRC" "$VHOST_LINK"
+fi
 
-echo "[*] Test de la configuration Nginx..."
-sudo nginx -t
+# Site default : supprimer seulement si présent
+DEFAULT_LINK="/etc/nginx/sites-enabled/default"
+if [ -L "$DEFAULT_LINK" ]; then
+    rm -f "$DEFAULT_LINK"
+fi
 
-echo "[*] Reload de Nginx..."
-sudo systemctl reload nginx
+# Test config et reload seulement si nécessaire
+if ! nginx -t; then
+    echo "[*] Erreur config Nginx, correction nécessaire."
+    exit 1
+fi
 
-echo "[*] Installation terminée. Teste avec : curl http://<IP_VM>"
+if [ -n "$(nginx -t 2>&1 | grep -i warning\|error)" ]; then
+    systemctl reload nginx
+else
+    systemctl reload-or-restart nginx
+fi
+
+IP=$(hostname -I | awk '{print $1}')
+echo "[*] Nginx prêt ! Teste : curl http://${IP}"

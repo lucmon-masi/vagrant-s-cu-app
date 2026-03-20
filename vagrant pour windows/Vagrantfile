@@ -1,16 +1,20 @@
 Vagrant.configure("2") do |config|
   config.vm.box = "alvistack/ubuntu-24.04"
 
+  config.vm.boot_timeout = 1800
+
+  config.vm.box_check_update = false
+
   config.vm.provider :virtualbox do |vb|
-  # Interface de paravirtualisation optimisée pour Linux
-  vb.customize ["modifyvm", :id, "--paravirtprovider", "kvm"]
+    # Interface de paravirtualisation optimisée pour Linux
+    vb.customize ["modifyvm", :id, "--paravirtprovider", "kvm"]
 
-  # Active l’IOAPIC (meilleure gestion interruptions / SMP)
-  vb.customize ["modifyvm", :id, "--ioapic", "on"]
+    # Active l’IOAPIC (meilleure gestion interruptions / SMP)
+    vb.customize ["modifyvm", :id, "--ioapic", "on"]
 
-  # S’assure que la virtualisation matérielle est active
-  vb.customize ["modifyvm", :id, "--hwvirtex", "on"]
-  vb.customize ["modifyvm", :id, "--nestedpaging", "on"]
+    # S’assure que la virtualisation matérielle est active
+    vb.customize ["modifyvm", :id, "--hwvirtex", "on"]
+    vb.customize ["modifyvm", :id, "--nestedpaging", "on"]
   end
 
   # VM keycloak (natif)
@@ -18,8 +22,8 @@ Vagrant.configure("2") do |config|
     kc.vm.hostname = "keycloak"
     kc.vm.network "private_network", ip: "192.168.56.10"
     kc.vm.provider :virtualbox do |v|
-      v.memory = 2048
-      v.cpus   = 1
+      v.memory = 4096
+      v.cpus   = 2
     end
     kc.vm.provision "shell", path: "provision/keycloak-install.sh"
   end
@@ -35,7 +39,9 @@ Vagrant.configure("2") do |config|
     web.vm.provision "shell", path: "provision/web-install.sh"
   end
 
-  # VM stockage1
+   # VM stockage (nœud 1 du cluster GlusterFS)
+  # Le script gluster-setup.sh est déposé mais exécuté manuellement après
+  # que les 3 nœuds sont up : `vagrant ssh stockage -- sudo /home/vagrant/gluster-setup.sh`
   config.vm.define "stockage" do |sto|
     sto.vm.hostname = "stockage"
     sto.vm.network "private_network", ip: "192.168.56.12"
@@ -43,13 +49,6 @@ Vagrant.configure("2") do |config|
       v.memory = 1024
       v.cpus   = 1
     end
-
-    # Scripts gluster dans /home/vagrant
-    sto.vm.provision "file",
-      source: "provision/gluster-setup.sh",
-      destination: "/home/vagrant/gluster-setup.sh"
-
-    sto.vm.provision "shell", inline: "chmod +x /home/vagrant/gluster-setup.sh"
   end
 
   # stockage2
@@ -60,12 +59,6 @@ Vagrant.configure("2") do |config|
       v.memory = 1024
       v.cpus   = 1
     end
-
-    sto2.vm.provision "file",
-      source: "provision/gluster-setup.sh",
-      destination: "/home/vagrant/gluster-setup.sh"
-
-    sto2.vm.provision "shell", inline: "chmod +x /home/vagrant/gluster-setup.sh"
   end
 
   # stockage3
@@ -76,12 +69,6 @@ Vagrant.configure("2") do |config|
       v.memory = 1024
       v.cpus   = 1
     end
-
-    sto3.vm.provision "file",
-      source: "provision/gluster-setup.sh",
-      destination: "/home/vagrant/gluster-setup.sh"
-
-    sto3.vm.provision "shell", inline: "chmod +x /home/vagrant/gluster-setup.sh"
   end
 
   # VM email
